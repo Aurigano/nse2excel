@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+		<!-- <title>Document</title> -->
+	</head>
+	<body>
+		<!-- <button onclick="location.href='{% url 'clicked' %}'">
+			Execute script
+		</button>
+		{% if data %} {{data | safe}} {% endif %} -->
+
+		<form action="/external" method="post">
+			{% csrf_token %} Filename should be equal to "nse2excel.xlsx" and
+			should be inside parent pollpoc directory > src directory:<br />
+			<!-- <input type="text" name="filename" required /><br /><br /> -->
+			Interval (in seconds): 15 seconds<br />
+			<!-- <input type="number" name="interval" required /><br /><br /> -->
+			<div id="option-selector">
+				Option Contracts For:
+				<select id="option-contracts" name="option" required>
+					<option value="NIFTY" selected>NIFTY</option>
+					<option value="FINNIFTY">FINNIFTY</option>
+					<option value="BANKNIFTY">BANKNIFTY</option>
+					<option value="MIDCPNIFTY">MIDCPNIFTY</option>
+				</select>
+				<div id="dataContainer"></div>
+				<div id="expiryDateContainer"></div>
+			</div>
+
+			{{data_external}}<br /><br />
+			{{data1}}
+			<br /><br />
+			<button type="submit">Execute External Python Script</button>
+		</form>
+
+		{% if data1 %}
+		<form action="/stop" method="post">
+			{% csrf_token %}
+			<button type="submit">Stop script</button>
+		</form>
+		{% endif %} {{data2}}
+		<br /><br />
+		{% if not data0 %}
+		<form action="/" method="post">
+			{% csrf_token %}
+			<button type="submit">Go To Home</button>
+		</form>
+		{% endif %}
+	</body>
+	<script>
+		$(document).ready(function () {
+			let selectedOption = $("#option-contracts").val();
+			let headers;
+
+			// Function to make the API call
+			function makeAPICall() {
+				$.ajax({
+					url: `https://www.nseindia.com/api/option-chain-indices?symbol=${selectedOption}`,
+					method: "GET",
+					headers: headers, // Set headers here
+					success: function (data) {
+						// Update the HTML content with the data from the API
+						$("#dataContainer").html(
+							"Succesfully fetched expiry dates <br/> <br/>"
+						);
+						// Check if data for the second select component is received
+						if (data.records.expiryDates.length > 0) {
+							// Generate the second select component and show it
+							var selectHtml =
+								'Expiry Date: <select id="expiryDate" name="expiry" required>';
+							$.each(
+								data.records.expiryDates,
+								function (index, option) {
+									selectHtml +=
+										'<option value="' + option + '"';
+									if (index === 0) {
+										selectHtml += " selected";
+									}
+									selectHtml += ">" + option + "</option>";
+								}
+							);
+							selectHtml += "</select>";
+							$("#expiryDateContainer").html(selectHtml).show();
+						}
+					},
+					error: function (xhr, status, error) {
+						console.error("Error:", error);
+						// If API call fails, display a button to retry
+						$("#dataContainer").html(
+							'<button id="retryButton" type="button">Retry</button>'
+						);
+					},
+				});
+			}
+
+			makeAPICall();
+
+			$("#option-contracts").change(function () {
+				selectedOption = $(this).val();
+				console.log($(this), $("#option-contracts"));
+
+				// Define headers
+				headers = {
+					Accept: "*/*",
+					"Accept-Encoding": "gzip, deflate, br",
+					"Accept-Language": "en-US,en;q=0.9,en-IN;q=0.8",
+					Referer: "https://www.nseindia.com/option-chain",
+					Cookie: "_ga=GA1.1.1692924048.1707636018; nsit=jr304sE0Bkqd-Ei8ZdnOxcfo; nseappid=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJhcGkubnNlIiwiYXVkIjoiYXBpLm5zZSIsImlhdCI6MTcxMTIwNTk1OCwiZXhwIjoxNzExMjEzMTU4fQ.ZkyZ-6x-guMajLiWhHvRmgatdKYmg_lsPV3cLUfi9m4; AKA_A2=A; _abck=0DED5F88A9364FA71F2451C79B1452F6~0~YAAQ7OlUuFjFg2uOAQAAVcLSawtxPku3uv+1DHeAQUpGNm6pwKLbm8x9r6Gjc5mYELsae3hf7ey6ZMSBo7nBVaTuA/OtJafyWkSeLYqnIUwejLrF8NYYdXWSRuiwIfAwKVjn/7Mw7W56F1inconQ5ncpr0jadKHZZ/iSCC9LlW6olRMuduzrRC4AtIXphVnZfY2xznirm/8ZSbn4DafXUJhiYQU944DlzIQCQ59n6mcGP+bWyz7QxYcHyOLebHk6JrVeCP8wXuaojfbWBsngRQqaXFOFe3hgvkHpEpeBvqUmsmhQqU5KbupMWvgXC7QSpysx4PXJ+kh0RGYxFVuHPqTInMvL4z3+3DAPP1bluZboskIq/xdlIt9ug2MqWdfLIMMCrFmXQNFXc0dcrvqXYxxBFj7XVrNdIypZ~-1~-1~-1; bm_sz=7F99F4B137596285B019239952702622~YAAQ7OlUuFvFg2uOAQAAVcLSaxeypQbRMWLKfRJoxiCH+yeVBCjy44Gg/BuEjOkq0D+ANA0xgxkPnKneyUmxSVA9uGoY3ObgIoDW18gtPzoWp7vYiEM1zktrcQNbI3SCeJYAxeRccwV2H/lpuRLY9knFhYJf/ZUF89QiyrB3G0OqfoEi/5WQ6jPXYZoqskEsIn5nigOj59gkMy8VB/vIhzR0KJ6tvUlsS/QRawTyxghYsEyRkGEXznRChh2YBnPje/tAV7sTwkjYmjf+ye6KBocpeBU7JcAW6VQcmbm1g6YQ740i1je4opaoy56zpqRKkLVJdNZpQRmN+O9PHzuUzeTiXv1NdMy2WlpTGmMVkoIkDlrRlAX4~4473925~4408630; defaultLang=en; _ga_QJZ4447QD3=GS1.1.1711205959.12.0.1711205959.0.0.0; ak_bmsc=DC2618B499D233F50925454473E8B4F1~000000000000000000000000000000~YAAQ7OlUuLfFg2uOAQAAQMzSaxcLrkZzwUTEUR2lOc1TawcUozxYazWlnhfqb03HurQWAFiae0ODVzopFSaLlGEXAMFGNd8v07vflPal+GrJv27Ww5O/E4QvlGKGlSVnF19CPWvG3mVMXJ55QCAaxznGRV6YsOVDAU1M2rOuZYE9ySjvV6hdTZ69qoeZMesOMtZpRYBtisyQuExfsOnR2vKa2YMOBeU7wosSGEZ0LP4lEPi6DEc099SG7hBmWbkaB/5UD3QuUqoKsB4vNcKv71J/OAKUJjL/hFV7gjKhbl/+uXgMx4S0AE6yh2l1NvS/hmQ6EVjy4M0Wg0/x7G68DhjB8vks0Qbk0xEOeOgW17OU0t5HU63DtnzNXhULgKq+TWVWiM4F5Hkvl/eFa7EWwP9I1gKe3l0wcZiqtNwwDFFNc1bo7hf1Qb/BTLthh3BJPTQy6ZGr70kgmRoedhK8; _ga_87M7PJ3R97=GS1.1.1711205960.12.1.1711205960.0.0.0; bm_sv=AF295355D4D4A9ED1E05DE1CFA9DFD6E~YAAQ7OlUuMjFg2uOAQAAFc7Saxck20LmJYegW6BPkOd+iF7iBaaQrckHZwge+GEbQ3fYhyFoFwxu9M6CjNb/MU+Zmx0CIAvv9XVSljbZ89ONZLSufLjpmw4J14GkacsCpDv4Bxw+HThI7sv7A0aw9Z6ILXbsK0QubHYhXrDP/7vmH4k+v6fz7sguJdwmt+0MiHB8ZosUPZLAab8k1bJFEsE9+fwqUVenUcdLhhlCVDLll/Z2RddDZzMZYjTkH0IisRI=~1",
+					"User-Agent":
+						"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Edg/122.0.0.0",
+				};
+
+				// Initial API call
+				makeAPICall();
+
+				// Retry button click event handler
+				$(document).on("click", "#retryButton", function () {
+					makeAPICall();
+				});
+			});
+		});
+	</script>
+</html>
